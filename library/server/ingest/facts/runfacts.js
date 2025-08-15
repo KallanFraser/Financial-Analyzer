@@ -35,12 +35,12 @@ export async function runFactsIngest() {
 	async function flushCompanies() {
 		const toWrite = companyBuffer.splice(0, companyBuffer.length); //copies all items to toWrite and empties the buffer
 		if (!toWrite.length) return; //ensure it has data
-		await upsertCompanyFacts(toWrite);
+		await upsertCompanyFacts(toWrite); // make sure your upsert layer handles { cik, sharesOutstanding, companyValue }
 	}
 
 	// 4) Process the zip stream file by file
 	await processZipStream(nodeStream, async (path, buffer) => {
-		//path contains a files path, buffer contains a company submission file itself
+		//path contains a files path, buffer contains a company facts file itself
 
 		// 5) parse the company file for its data
 		const parsed = parseCompanyFacts(path, buffer);
@@ -50,7 +50,7 @@ export async function runFactsIngest() {
 		//increasing our dev counter
 		companies++;
 
-		// 6) Push company submission data to buffer
+		// 6) Push parsed facts to buffer (includes sharesOutstanding + companyValue if present)
 		companyBuffer.push(parsed);
 
 		// 8) Flush buffer if full

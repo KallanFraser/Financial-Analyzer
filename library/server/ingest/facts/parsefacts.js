@@ -4,6 +4,25 @@
 --------------------------------------------------------------------------------*/
 import "server-only"; //tells next.js this module must never be bundled into the client
 
+// One combined dictionary of "value-ish" keys (revenue/gross profit/etc.)
+// (broad net, fine if imperfect — we only need *a* company value metric)
+const VALUE_KEYS = [
+	"RevenueFromContractWithCustomerExcludingAssessedTax",
+	"RevenueFromContractWithCustomerIncludingAssessedTax",
+	"SalesRevenueNet",
+	"SalesRevenueGoodsNet",
+	"SalesRevenueServicesNet",
+	"Revenues",
+	"Revenue",
+	"OperatingRevenue",
+	"TotalRevenuesAndOtherIncome",
+	"RevenuesNetOfInterestExpense",
+	"GrossProfit",
+	"RevenueIFRS",
+	"RevenueFromContractsWithCustomers",
+	"TurnoverRevenue",
+];
+
 /*-------------------------------------------------------------------------------
                                     Main
 --------------------------------------------------------------------------------*/
@@ -19,36 +38,60 @@ export function parseCompanyFacts(fileName, buffer) {
 		return null;
 	}
 
-	// 2) cik we need for insertion
+	// 2) CIK we need for insertion
 	const cik = String(obj?.cik ?? "0000000000");
-	const entityName = String(obj?.entityName ?? "");
 
-	// 3) dig into facts → dei → EntityCommonStockSharesOutstanding → units
-	//    then transform the object into an array of individual objects
-	const unitsObj = obj?.facts?.dei?.EntityCommonStockSharesOutstanding?.units || {};
-	const allEntries = Object.values(unitsObj).flat(); // [{ end, val, accn, form, filed, ... }, ...]
+	// We don’t care if it’s revenue or gross profit — just pick something “value-like”.
+	// Rule: pick entry with the most recent `end`; tie on same end → larger `val`.
+	const companyValueMaybe = pickLatestValueMetric(obj);
 
-	// 4) if no entries, return early
-	if (!allEntries.length) {
-		console.log("");
-		console.log("Company: ", entityName, " did not have share entries in its company facts.");
-		console.log("");
-		return { cik, sharesOutstanding: [] };
+	//console.log("company value check: ", companyValueMaybe ?? "0");
+
+	return { cik, companyValue: companyValueMaybe ?? "0" };
+}
+
+/*-------------------------------------------------------------------------------
+                                Helpers
+--------------------------------------------------------------------------------*/
+// returns a single string value (e.g. "123456789") or null if nothing found
+function pickLatestValueMetric(obj) {
+	const factsRoot = obj?.facts || {};
+	const namespaces = ["us-gaap", "ifrs-full", "dei"]; // search broadly
+
+	// Collect all candidate entries from VALUE_KEYS across namespaces
+	const entries = [];
+	for (const ns of namespaces) {
+		const bucket = factsRoot?.[ns];
+		if (!bucket) continue;
+		for (const key of VALUE_KEYS) {
+			const unitsObj = bucket?.[key]?.units;
+			if (!unitsObj) continue;
+			for (const arr of Object.values(unitsObj)) {
+				for (const rec of arr || []) {
+					// keep only numeric vals that have an 'end' date
+					if (!rec || !rec.end) continue;
+					const num = Number(rec.val);
+					if (!Number.isFinite(num)) continue;
+					entries.push(rec);
+				}
+			}
+		}
 	}
 
-	// 5) dedupe by 'end' — LAST WINS (overwrites previous)
-	// this is for the case of amended versions but the stock price does not change so does not matter which is picked.
-	const byEnd = new Map(); //creates a dictionary where keys are unique (key = date, value = record object)
-	for (const rec of allEntries) {
-		const end = rec?.end; //skips falsey end rows
-		if (!end) continue;
-		byEnd.set(end, rec); // inserts or replaces the value for that end date
+	if (!entries.length) return null;
+
+	// Choose most recent by `end`; tie → larger value
+	let best = null; // { endTs, valNum }
+	for (const rec of entries) {
+		const endTs = Date.parse(rec.end || "");
+		if (!Number.isFinite(endTs)) continue;
+		const valNum = Number(rec.val);
+		if (!Number.isFinite(valNum)) continue;
+
+		if (!best || endTs > best.endTs || (endTs === best.endTs && valNum > best.valNum)) {
+			best = { endTs, valNum };
+		}
 	}
 
-	// 6) pulling out our deduped records from the map and stripping the values we want
-	const sharesOutstanding = Array.from(byEnd.values())
-		.map((r) => ({ end: r.end ?? "1/1/2000", val: r.val ?? "0", accn: r.accn ?? "" }))
-		.sort((a, b) => (Date.parse(a.end) || 0) - (Date.parse(b.end) || 0));
-
-	return { cik, sharesOutstanding };
+	return best ? String(best.valNum) : null;
 }
