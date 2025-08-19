@@ -7,7 +7,8 @@
 		"build": "next build",
 		"start": "next start",
 		"fetch:bulksubmissions": "curl -X POST http://localhost:3000/api/ingest/submissions -H \"Authorization: Bearer penis_slayer_62\"",
-		"fetch:bulkfacts": "curl -X POST http://localhost:3000/api/ingest/facts -H \"Authorization: Bearer penis_slayer_62\""
+		"fetch:bulkfacts": "curl -X POST http://localhost:3000/api/ingest/facts -H \"Authorization: Bearer penis_slayer_62\"",
+		"fetch:reports": "curl -X POST http://localhost:3000/api/ingest/reports -H \"Authorization: Bearer penis_slayer_62\""
 	},
 	"repository": {
 		"type": "git",
@@ -24,6 +25,8 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.859.0",
 		"@supabase/supabase-js": "^2.54.0",
+		"cheerio": "^1.1.2",
+		"fast-xml-parser": "^5.2.5",
 		"next": "^15.4.5",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
