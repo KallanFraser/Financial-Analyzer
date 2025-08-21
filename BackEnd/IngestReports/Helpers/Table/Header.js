@@ -4,33 +4,55 @@ import { detectUnitScales } from "../Core/Units.js";
 
 // Parse header rows for dates + unit scales.
 export function parseHeader(table, layout, $) {
-	// 1) First few header rows
-	const headerRows = table.find("tr:has(th)").slice(0, 3).toArray();
+	// A) Caption often contains "(in millions)"
+	const captionText = cleanText(table.find("caption").first().text());
 
-	// 2) Raw header text
-	const headerTexts = headerRows.map((row) => $(row).text());
+	// B) First few rows regardless of th — units often live here
+	const anyHeaderRows = table.find("tr").slice(0, 5).toArray();
 
-	// 3) Unit scales
-	const { moneyScale, shareScale } = detectUnitScales(headerTexts);
+	// C) Rows that have th — usually where date labels live
+	const thHeaderRows = table.find("tr:has(th)").slice(0, 3).toArray();
 
-	// 4) Collect <th> texts
-	const thTexts = headerRows.flatMap((row) =>
+	//console.log("[HDR] caption:", captionText);
+	//console.log("[HDR] thRows:", thHeaderRows.length, "anyRows:", anyHeaderRows.length);
+
+	// Unit-detection text = caption + first few 'th' rows + first few any rows
+	const headerTexts = [
+		captionText,
+		...thHeaderRows.map((row) => $(row).text()),
+		...anyHeaderRows.map((row) => $(row).text()),
+	].filter(Boolean);
+
+	/*
+	console.log(
+		"[HDR] headerTexts:",
+		headerTexts.map((t) => t.replace(/\s+/g, " ").slice(0, 180))
+	);
+	*/
+
+	// Detect scales (cashflow ignores shares)
+	const { moneyScale, shareScale } = detectUnitScales(headerTexts, { layout });
+
+	// Extract year labels from 'th' cells
+	const thTexts = thHeaderRows.flatMap((row) =>
 		$(row)
 			.find("th")
 			.toArray()
 			.map((th) => cleanText($(th).text()))
 	);
 
-	// 5) Keep strings that look like year labels and remove irrelevant words
 	let dates = thTexts
 		.filter((t) => /\b(19|20)\d{2}\b/.test(t))
 		.map((t) => t.replace(/[.,]/g, "").trim())
 		.filter((t) => !/statement|consolidated|unaudited|notes?/i.test(t));
 
-	// Edge case: mislabelled first date cell
+	// Edge case: first 'date' cell is actually a title
 	if (dates.length >= 2 && /statement|consolidated|assets|liabilities|equity|position/i.test(dates[0])) {
 		dates = dates.slice(1);
 	}
+
+	//console.log("[HDR] dates:", dates);
+	//console.log("[HDR] layout/scales:", { layout, moneyScale, shareScale });
 
 	return { dates, moneyScale, shareScale };
 }

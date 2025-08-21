@@ -3,35 +3,56 @@ import { cleanText } from "./Text.js";
 import { scaleFromWord } from "./Numbers.js";
 
 // Detect money/share scales from header lines like "$ in Millions", "(in thousands)", "shares in thousands", etc.
-export function detectUnitScales(headerTexts) {
-	// 1) Join and normalize
-	const blob = headerTexts.map(cleanText).join(" • ");
+export function detectUnitScales(headerTexts, opts = {}) {
+	const layout = opts.layout || null;
 
-	// 2) Detect shares units first
+	// Normalize and join all header lines we collected
+	const blob = headerTexts
+		.map((t) => cleanText(String(t || "")))
+		.filter(Boolean)
+		.join(" • ");
+
+	// Shares (skip for cashflow entirely)
 	let shareScale = 1;
-	const mShares =
-		blob.match(/shares?\s+in\s+(billions|millions|thousands)\b/i) ||
-		blob.match(/\(\s*shares?\s+in\s+(billions|millions|thousands)\s*\)/i);
-	if (mShares) shareScale = scaleFromWord(mShares[1].toLowerCase());
+	if (layout !== "cashflow") {
+		const mShares =
+			blob.match(/shares?\s+in\s+(billions|millions|thousands)\b/i) ||
+			blob.match(/\(\s*shares?\s+in\s+(billions|millions|thousands)\s*\)/i);
+		if (mShares) shareScale = scaleFromWord(mShares[1].toLowerCase());
+	}
 
-	// 3) Remove the shares-in-... clause so money parsing doesn't match it
+	// Remove "shares in ..." so money regex can't be confused by it
 	const blobNoShares = blob.replace(/\(?\s*shares?\s+in\s+(?:billions|millions|thousands)\s*\)?/gi, "");
 
-	// 4) Detect money units; require a currency signal ($ or USD)
+	// Money scale:
+	// Try the common phrasings first, then accept "USD ($) $ in Millions" and finally a safe "\bin millions\b".
 	let moneyScale = 1;
-	const mMoney =
-		// ", $ in Millions" or "USD in Millions"
-		blobNoShares.match(
-			/(?:^|[,\-–—;•]\s*)(?:\$|usd)\s*(?:amounts?\s+)?in\s+(billions|millions|thousands)\b/i
-		) ||
-		// "Amounts in Millions (USD)" or "(Amounts in Millions)"
-		blobNoShares.match(/amounts?\s+in\s+(billions|millions|thousands)(?:\s*(?:usd|dollars|\$))?\b/i) ||
-		// Parenthetical "(in Millions)" possibly with currency
-		blobNoShares.match(
-			/\(\s*(?:in|amounts?\s+in)\s+(billions|millions|thousands)(?:\s*(?:usd|dollars|\$))?\s*\)/i
-		);
+	let match = null;
 
-	if (mMoney) moneyScale = scaleFromWord(mMoney[1].toLowerCase());
+	const patterns = [
+		// "$ in millions" or "USD in millions"
+		/(?:^|[,\-–—;•]\s*)(?:\$|usd)\s*(?:amounts?\s+)?in\s+(billions|millions|thousands)\b/i,
+
+		// "(in millions)" or "(amounts in millions)"
+		/\(\s*(?:in|amounts?\s+in)\s+(billions|millions|thousands)(?:\s*(?:usd|dollars|\$))?\s*\)/i,
+
+		// "amounts in millions"
+		/amounts?\s+in\s+(billions|millions|thousands)(?:\s*(?:usd|dollars|\$))?\b/i,
+
+		// Apple-style: "USD ($) $ in Millions" (allow a few non-letters between USD/$ and "in")
+		/\b(?:usd|\$)[^a-zA-Z]{0,12}\bin\s+(billions|millions|thousands)\b/i,
+
+		// Last-resort: plain "in millions" (word boundary avoids matching "beginning")
+		/\bin\s+(billions|millions|thousands)\b/i,
+	];
+
+	for (const re of patterns) {
+		match = blobNoShares.match(re);
+		if (match) {
+			moneyScale = scaleFromWord(match[1].toLowerCase());
+			break;
+		}
+	}
 
 	return { moneyScale, shareScale };
 }

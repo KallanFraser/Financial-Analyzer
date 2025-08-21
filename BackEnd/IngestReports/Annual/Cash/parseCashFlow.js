@@ -29,6 +29,9 @@ export function parseCashFlowStatement(htmlSection) {
 	// 3) Header: grab dates and unit scales (pass "cashflow" for CF heuristics, if any)
 	const { dates, moneyScale, shareScale } = parseHeader(table, "cashflow", $);
 
+	//console.log("[CF] dates from header:", dates);
+	//console.log("[CF] scales from header:", { moneyScale, shareScale });
+
 	// Optional sanity: if no valid dates, bail with defaults
 	if (!Array.isArray(dates) || dates.length === 0) {
 		return { dates: [], rows: [], unitsMeta: { moneyScale, shareScale } };
@@ -36,13 +39,15 @@ export function parseCashFlowStatement(htmlSection) {
 
 	// (Optional) Treat >3 columns as interim CF and bail (mirrors your IS logic)
 	if (dates.length > 3) {
-		console.log("[SKIP] Detected interim-period cash flow (dates > 3). Dates:", dates);
+		//console.log("[SKIP] Detected interim-period cash flow (dates > 3). Dates:", dates);
 		return { dates: [], rows: [], unitsMeta: { moneyScale, shareScale } };
 	}
 
 	// 4) Row collection with CF-specific breakdown handling + section-label disambiguation
 	const expectedCols = dates.length;
-	const unitsMeta = { moneyScale, shareScale };
+	const unitsMeta = { moneyScale, shareScale, cashOnly: true };
+
+	//console.log("[CF] unitsMeta used:", unitsMeta);
 
 	const { rows: collected } = collectTableRowsCashFlow(
 		table,
