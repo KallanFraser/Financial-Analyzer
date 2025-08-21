@@ -27,5 +27,5 @@ import { runIngestReports } from "./IngestReports/IngestReports.js";
 //Server start point
 app.listen(PORT, () => {
 	console.log(`Server is running on http://localhost:${PORT}`);
-	runIngestReports("0000909832");
+	runIngestReports("0000320193");
 });

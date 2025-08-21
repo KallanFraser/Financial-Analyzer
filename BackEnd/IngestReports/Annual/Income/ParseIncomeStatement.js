@@ -3,10 +3,13 @@
                                     Imports
 ------------------------------------------------------------------------------*/
 import * as cheerio from "cheerio";
-import { extractHtml } from "../../Helpers/ParsingHelpers.js";
-import { parseHeader, parseDataRow } from "../../Helpers/TableParsingHelpers.js";
-import { collectRows } from "../../Helpers/CollectRows.js";
-import { softDedupRows } from "../../Helpers/RowHelpers.js";
+import {
+	extractHtml,
+	parseHeader,
+	parseDataRow,
+	collectTableRows,
+	softDedupRows,
+} from "../../Helpers/Index.js";
 
 /*------------------------------------------------------------------------------
                                     Globals
@@ -39,7 +42,7 @@ export function parseAnnualIncomeStatement(htmlSection) {
 	// 5) Row collection (parsing + breakdown handling)
 	const expectedCols = dates.length;
 	const unitsMeta = { moneyScale, shareScale };
-	const { rows: collected } = collectRows(table, $, parseDataRow, expectedCols, unitsMeta);
+	const { rows: collected } = collectTableRows(table, $, parseDataRow, expectedCols, unitsMeta);
 
 	// 6) Soft de-dupe
 	const rows = softDedupRows(collected);

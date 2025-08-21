@@ -1,24 +1,22 @@
 /** @format */
-/*------------------------------------------------------------------------------
-                                Imports
-------------------------------------------------------------------------------*/
-import { extractTaxonomy } from "./ParsingHelpers.js";
-import { isSectionHeaderRow, updateBreakdownStateFromHeader, handleBreakdownRow } from "./RowHelpers.js";
+import { extractTaxonomy } from "../Core/Taxonomy.js";
+import {
+	isSectionHeaderRow,
+	updateBreakdownStateFromHeader,
+	handleBreakdownRow,
+} from "./RowsIncomeStatement.js";
 
-/*------------------------------------------------------------------------------
-                                Helpers
-------------------------------------------------------------------------------*/
 /**
  * Iterate table rows, handle headers/breakdowns, parse with `parseDataRow`.
  * Returns { rows: collected[], detectedValueCols: number }
  */
-export function collectRows(table, $, parseDataRow, valueCols, unitsMeta) {
+export function collectTableRows(table, $, parseDataRow, valueCols, unitsMeta) {
 	let inBreakdown = false;
 	let detectedValueCols = valueCols ?? 0;
 	const collected = [];
 
 	for (const tr of table.find("tr").toArray()) {
-		// Header rows: only affect breakdown state
+		// Header rows only affect breakdown state
 		if (isSectionHeaderRow(tr, $)) {
 			inBreakdown = updateBreakdownStateFromHeader(tr, $, inBreakdown);
 			continue;

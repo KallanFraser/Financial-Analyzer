@@ -11,6 +11,8 @@ import { fetchFilingSummary } from "../Fetchers/FetchFilingSummary.js";
 //Parsers
 import { fetchCoreStatementSections } from "../Fetchers/FetchCoreStatementSections.js";
 import { parseAnnualIncomeStatement } from "./Income/ParseIncomeStatement.js";
+import { parseBalanceSheetStatement } from "./Balance/ParseBalanceSheet.js";
+import { parseCashFlowStatement } from "./Cash/ParseCashFlow.js";
 /*-------------------------------------------------------------------------------
                                     Main
 --------------------------------------------------------------------------------*/
@@ -37,7 +39,7 @@ export const parseAnnualReports = async (cik, annualReportData) => {
 
 			// 4) Parse Income statement & Upsert
 			if (incomeStatement?.html) {
-				const incomeData = parseAnnualIncomeStatement(incomeStatement.html);
+				//const incomeData = parseAnnualIncomeStatement(incomeStatement.html);
 				//await upsertAnnualIncomeStatement(supabase, cik, accession_number, incomeData);
 			} else {
 				console.warn(
@@ -46,8 +48,20 @@ export const parseAnnualReports = async (cik, annualReportData) => {
 			}
 
 			// 4) Parse Balance Sheet & Upsert
+			if (balanceSheet?.html) {
+				//const balanceData = parseBalanceSheetStatement(balanceSheet.html);
+				//await upsertAnnualIncomeStatement(supabase, cik, accession_number, incomeData);
+			} else {
+				console.warn(`No Balance Sheet found for cik=${cik}, accession_number=${accession_number}`);
+			}
 
 			// 4) Parse Cash Flow Statement & Upsert
+			if (cashFlow?.html) {
+				const cashData = parseCashFlowStatement(cashFlow.html);
+				//await upsertAnnualIncomeStatement(supabase, cik, accession_number, incomeData);
+			} else {
+				console.warn(`No Cash Flow found for cik=${cik}, accession_number=${accession_number}`);
+			}
 		} catch (error) {
 			console.error("parseAnnualReports.js Error for cik", cik, " ", error);
 			continue;

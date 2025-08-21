@@ -10,7 +10,7 @@ import { fetchReportMetaData } from "../Database/ReportMethods/FetchReportMetaDa
 import { parseAnnualReports } from "./Annual/ParseAnnualReports.js";
 
 //Helpers
-import { cutoffISOFromYears, normalizeFormType } from "./Helpers/IngestionHelpers.js";
+import { cutoffISOFromYears, normalizeFormType } from "./Helpers/Index.js";
 
 /*-------------------------------------------------------------------------------
                                     Main

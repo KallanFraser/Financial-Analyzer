@@ -1,20 +1,15 @@
 /** @format */
-/*------------------------------------------------------------------------------
-                                Imports
-------------------------------------------------------------------------------*/
-import { cleanText, extractTaxonomy } from "./ParsingHelpers.js";
-/*------------------------------------------------------------------------------
-                                Regexes & Constants
-------------------------------------------------------------------------------*/
+import { cleanText } from "../Core/Text.js";
+import { extractTaxonomy } from "../Core/Taxonomy.js";
+
+// Heuristics for detecting breakdown sections and core lines
 const breakdownHeaderRe =
 	/\b(products?|services?|segments?|segment|geographic|by\s+segment|by\s+category|revenue\s+by|sales\s+by)\b/i;
 
 const coreLineRe =
 	/\b(net\s+sales|total\s+revenue|revenue\s+from|net\s+income(?:\s*\(loss\))?|earnings\s+per\s+share|basic|diluted)\b/i;
-/*------------------------------------------------------------------------------
-                                Helpers
-------------------------------------------------------------------------------*/
-//Decide if a <tr> is a header row (non-numeric, not GAAP-tagged).
+
+// Is this <tr> a header (non-numeric, not GAAP-tagged)?
 export function isSectionHeaderRow(tr, $) {
 	// GAAP-tagged rows are data, not headers
 	if (extractTaxonomy(tr, $)) return false;
