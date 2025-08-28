@@ -7,38 +7,39 @@ import { getSupabase } from "../../Database/Client.js";
 
 // Fetchers
 import { fetchFilingSummary } from "../Fetchers/FetchFilingSummary.js";
-
-// Parsers (Annual)
 import { fetchCoreStatementSections } from "../Fetchers/FetchCoreStatementSections.js";
-import { parseAnnualIncomeStatement } from "./Income/ParseIncomeStatement.js";
-import { parseBalanceSheetStatement } from "./Balance/ParseBalanceSheet.js";
-import { parseCashFlowStatement } from "./Cash/ParseCashFlow.js";
 
-// Upserts (Annual)
+// Parsers (quarterly)
+import { parseQuarterlyIncomeStatement } from "./Income/ParseIncomeStatement.js";
+import { parseQuarterlyBalanceSheetStatement } from "./Balance/ParseBalanceSheet.js";
+import { parseQuarterlyCashFlowStatement } from "./Cash/ParseCashFlow.js";
+
+// Upserts (quarterly variants)
 import {
-	upsertAnnualFilingSummary,
-	upsertAnnualIncomeStatement,
-	upsertAnnualBalanceSheet,
-	upsertAnnualCashFlow,
-} from "../../Database/ReportMethods/UpsertAnnualStatements.js";
+	upsertQuarterlyFilingSummary,
+	upsertQuarterlyIncomeStatement,
+	upsertQuarterlyBalanceSheet,
+	upsertQuarterlyCashFlow,
+} from "../../Database/ReportMethods/UpsertQuarterlyStatements.js";
+
 /*-------------------------------------------------------------------------------
                                     Main
 --------------------------------------------------------------------------------*/
-// Function to process each annual report
+// Function to process each quarterly report
 // Fetches the filing summary, parses it for the section, downloads the statements raw html
 // Then parses the raw html, and then finally upserts the data into our db
 // CIK is passed as an argument so as to upsert
-export const parseAnnualReports = async (cik, annualReportData) => {
+export const parseQuarterlyReports = async (cik, quarterlyReportData) => {
 	// connect to supabase if not already
 	getSupabase();
 
-	// For each report in our array of annual reports...
-	for (const { accession_number } of annualReportData ?? []) {
+	// For each report in our array of quarterly reports...
+	for (const { accession_number } of quarterlyReportData) {
 		try {
 			// 1) Fetch the filing summary
 			const filingSummaryData = await fetchFilingSummary(cik, accession_number);
 
-			// 2) Fetch raw html for each reports statements
+			// 2) Fetch raw html for each report's statements
 			const { incomeStatement, balanceSheet, cashFlow } = await fetchCoreStatementSections(
 				filingSummaryData,
 				cik,
@@ -48,33 +49,33 @@ export const parseAnnualReports = async (cik, annualReportData) => {
 			// 3) Parse all three in parallel (fast) – no writes yet
 			const [parsedIncomeData, parsedBalanceData, parsedCashData] = await Promise.all([
 				incomeStatement?.html
-					? Promise.resolve(parseAnnualIncomeStatement(incomeStatement.html))
+					? Promise.resolve(parseQuarterlyIncomeStatement(incomeStatement.html))
 					: Promise.resolve(null),
 				balanceSheet?.html
-					? Promise.resolve(parseBalanceSheetStatement(balanceSheet.html))
+					? Promise.resolve(parseQuarterlyBalanceSheetStatement(balanceSheet.html))
 					: Promise.resolve(null),
 				cashFlow?.html
-					? Promise.resolve(parseCashFlowStatement(cashFlow.html))
+					? Promise.resolve(parseQuarterlyCashFlowStatement(cashFlow.html))
 					: Promise.resolve(null),
 			]);
 
 			// 4) Upsert All
 			const tasks = [
-				upsertAnnualFilingSummary(cik, accession_number, filingSummaryData),
+				upsertQuarterlyFilingSummary(cik, accession_number, filingSummaryData),
 				parsedIncomeData
-					? upsertAnnualIncomeStatement(cik, accession_number, parsedIncomeData)
+					? upsertQuarterlyIncomeStatement(cik, accession_number, parsedIncomeData)
 					: Promise.resolve(),
 				parsedBalanceData
-					? upsertAnnualBalanceSheet(cik, accession_number, parsedBalanceData)
+					? upsertQuarterlyBalanceSheet(cik, accession_number, parsedBalanceData)
 					: Promise.resolve(),
 				parsedCashData
-					? upsertAnnualCashFlow(cik, accession_number, parsedCashData)
+					? upsertQuarterlyCashFlow(cik, accession_number, parsedCashData)
 					: Promise.resolve(),
 			];
 
 			await Promise.all(tasks); // rejects if any single upsert rejects
 		} catch (error) {
-			console.error("parseAnnualReports.js Error for cik", cik, error);
+			console.error("parseQuarterlyReports.js Error for cik", cik, error);
 			continue;
 		}
 	}

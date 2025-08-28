@@ -84,7 +84,7 @@ export const fetchCoreStatementSections = async (filingSummary, cik, accessionNu
 		if (!incomeStatement || !balanceSheet || !cashFlow) {
 			throw new Error("Missing one or more core statements (income, balance sheet, cash flow).");
 		}
-		console.log(cashFlow.fileName);
+		//console.log(cashFlow.fileName);
 
 		// 5) Return a compact, explicit shape (all statements guaranteed non-null)
 		return {

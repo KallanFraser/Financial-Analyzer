@@ -9,6 +9,9 @@ const breakdownHeaderRe =
 const coreLineRe =
 	/\b(net\s+sales|total\s+revenue|revenue\s+from|net\s+income(?:\s*\(loss\))?|earnings\s+per\s+share|basic|diluted)\b/i;
 
+const forceHeaderReIS =
+	/\b(earnings\s+per\s+share|shares\s+used\s+in\s+computing\s+earnings\s+per\s+share)\b/i;
+
 // Is this <tr> a header (non-numeric, not GAAP-tagged)?
 export function isSectionHeaderRow(tr, $) {
 	// GAAP-tagged rows are data, not headers
@@ -20,6 +23,10 @@ export function isSectionHeaderRow(tr, $) {
 		.map((el) => cleanText($(el).text()));
 
 	if (texts.every((t) => t === "")) return false;
+
+	const rowText = texts.join(" ");
+	// NEW: treat EPS-related lines as headers regardless of numbers
+	if (forceHeaderReIS.test(rowText)) return true;
 
 	const hasNumber = texts.some((t) => /^[+-]?\d*\.?\d+(e[+-]?\d+)?%?$/.test(t.replace(/[$,()]/g, "")));
 
@@ -51,6 +58,31 @@ export function handleBreakdownRow(tr, $, inBreakdown) {
 		return { skipRow: true, newState: true }; // keep skipping inside breakdown
 	}
 	return { skipRow: false, newState: false }; // exit breakdown, process this row
+}
+
+/* -----------------------------------------------------------------------------
+   Section label extraction (for disambiguating duplicate metric names)
+   Examples: "Revenue", "Cost of sales", "Operating expenses", "Other income (expense)"
+----------------------------------------------------------------------------- */
+
+// Header-like section labels commonly present without numbers
+const sectionLabelReIS =
+	/\b(revenue|net\s+sales|sales|cost\s+of\s+(?:revenue|sales|goods\s+sold)|gross\s+(?:profit|margin)|operating\s+expenses?|research\s+and\s+development|selling,\s*general\s*and\s*administrative|other\s+(?:income|expense)s?(?:,\s*net)?|non[-\s]?operating\s+(?:income|expenses?)|interest\s+(?:income|expense)|income\s+before\s+income\s+taxes|provision\s+for\s+income\s+taxes|income\s+from\s+operations|operating\s+income|net\s+(?:income|loss)|earnings\s+per\s+share|shares\s+used\s+in\s+computing\s+earnings\s+per\s+share)\b/i;
+
+function toTitleCaseIS(s) {
+	return s.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
+
+/**
+ * Extract a normalized income-statement section label from a header row.
+ * Returns null if not recognized.
+ */
+export function extractSectionLabelIS(tr, $) {
+	const headerText = cleanText($(tr).text());
+	const m = headerText.match(sectionLabelReIS);
+	if (!m) return null;
+	const raw = m[0].replace(/\s+/g, " ").trim();
+	return toTitleCaseIS(raw);
 }
 
 /**

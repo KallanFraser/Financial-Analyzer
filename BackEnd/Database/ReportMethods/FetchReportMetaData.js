@@ -14,7 +14,7 @@ export const fetchReportMetaData = async (cik, CUTOFF_ISO) => {
 			throw new Error("fetchReportMetaData: CIK not valid");
 		}
 
-		// 1) Create client.
+		// 1) Create or fetch client.
 		const supabase = getSupabase();
 
 		// 2) Pull the fields we need.
@@ -27,17 +27,17 @@ export const fetchReportMetaData = async (cik, CUTOFF_ISO) => {
 			.order("accession_number", { ascending: false });
 
 		if (error) {
+			// Execution will stop immediately, throw the excepetion object, and trigger the catch block.
 			throw new Error(`Failed to fetch forms for CIK ${cik}: ${error.message}`);
 		}
 
 		// 3) Convert to array or else empty array
 		const rows = Array.isArray(data) ? data : [];
 
-		// 4) return
+		// 4) return the rows fetched
 		return rows;
 	} catch (error) {
 		console.error("fetchReportMetaData Error: ", error);
 		return;
 	}
-	return;
 };

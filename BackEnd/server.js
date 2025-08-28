@@ -1,5 +1,4 @@
 /** @format */
-
 //Node Library imports
 import dotenv from "dotenv";
 import express from "express";
@@ -17,7 +16,7 @@ dotenv.config({ path: path.join(currentDirectory, "..", ".env") });
 
 //Express App Setup
 const app = express();
-app.use(express.json());
+app.use(express.json()); //Lets express routes understand JSON payloads from the front end.
 app.use(cors()); //Must be called before routes are defined
 const PORT = 3000;
 

@@ -12,53 +12,41 @@ import { collectTableRowsCashFlow } from "../../Helpers/Table/CollectCashFlow.js
 const DEFAULT_UNITS_META = { moneyScale: 1, shareScale: 1 };
 
 /*------------------------------------------------------------------------------
-                              Cash Flow Parser (Annual)
+                          Cash Flow Parser (Quarterly)
+  Notes vs annual:
+   - No "dates.length > 3" bail; keep 3M & 9M together if present.
 ------------------------------------------------------------------------------*/
-export function parseCashFlowStatement(htmlSection) {
+export function parseQuarterlyCashFlowStatement(htmlSection) {
 	// 1) Extract and load HTML
 	const clean = extractHtml(htmlSection);
 	const $ = cheerio.load(clean);
 
-	// 2) Find the first table
+	// 2) First table
 	const table = $("table").first();
 	if (!table.length || !table.find("tr").length) {
-		return { dates: [], rows: [], unitsMeta: { ...DEFAULT_UNITS_META } };
-		// Nothing to parse
+		return { dates: [], rows: [], unitsMeta: { ...DEFAULT_UNITS_META, isQuarterly: true } };
 	}
 
-	// 3) Header: grab dates and unit scales (pass "cashflow" for CF heuristics, if any)
+	// 3) Header
 	const { dates, moneyScale, shareScale } = parseHeader(table, "cashflow", $);
 
-	//console.log("[CF] dates from header:", dates);
-	//console.log("[CF] scales from header:", { moneyScale, shareScale });
-
-	// Optional sanity: if no valid dates, bail with defaults
 	if (!Array.isArray(dates) || dates.length === 0) {
-		return { dates: [], rows: [], unitsMeta: { moneyScale, shareScale } };
+		return { dates: [], rows: [], unitsMeta: { moneyScale, shareScale, isQuarterly: true } };
 	}
 
-	// (Optional) Treat >3 columns as interim CF and bail (mirrors your IS logic)
-	if (dates.length > 3) {
-		//console.log("[SKIP] Detected interim-period cash flow (dates > 3). Dates:", dates);
-		return { dates: [], rows: [], unitsMeta: { moneyScale, shareScale } };
-	}
-
-	// 4) Row collection with CF-specific breakdown handling + section-label disambiguation
+	// 4) Collect rows with CF-specific handling
 	const expectedCols = dates.length;
-	const unitsMeta = { moneyScale, shareScale, cashOnly: true };
-
-	//console.log("[CF] unitsMeta used:", unitsMeta);
+	const unitsMeta = { moneyScale, shareScale, cashOnly: true, isQuarterly: true };
 
 	const { rows: collected } = collectTableRowsCashFlow(table, $, parseDataRow, expectedCols, unitsMeta);
 
-	// 5) Soft de-dup (collapse near-duplicate untagged rows)
+	// 5) De-dup
 	const rows = softDedupRows(collected);
 
-	// Debug (keep your existing style)
-	//console.log("dates: ", dates);
-	//console.log("rows: ", rows);
-	//console.log("moneyScale: ", moneyScale);
-	//console.log("shareScale: ", shareScale);
+	// Debug
+	// console.log("[Q-CF] dates:", dates);
+	// console.log("[Q-CF] units:", unitsMeta);
+	// console.log("[Q-CF] rows:", rows?.length);
 
 	// 6) Done
 	return { dates, rows, unitsMeta };
